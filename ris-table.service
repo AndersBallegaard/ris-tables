@@ -1,0 +1,14 @@
+
+[Unit]
+Description=Ris server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/ris_tables
+Type=notify
+Restart=always
+
+
+[Install]
+WantedBy=default.target
+RequiredBy=network.target
