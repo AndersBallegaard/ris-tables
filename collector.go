@@ -76,7 +76,7 @@ func (c *RISCollector) update(e *RISEvent) {
 	}
 	if e.Data.Withdrawals != nil {
 		for _, prefix := range e.Data.Withdrawals {
-			log.Println("Withdrawl recived for", prefix, "from", e.Data.Peer_asn)
+			//log.Println("Withdrawl recived for", prefix, "from", e.Data.Peer_asn)
 			p, err := netip.ParsePrefix(prefix)
 			ErrorParserFatal(err)
 			peer, err := netip.ParseAddr(e.Data.Peer)

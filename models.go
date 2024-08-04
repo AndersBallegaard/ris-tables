@@ -125,14 +125,14 @@ func (r *RouteBSTNode) insertRouteIfNew(prefix netip.Prefix, version IP_VERSION)
 	ErrorParserFatal(err)
 	if ps < rps {
 		if r.Left == nil {
-			log.Println("Adding prefix", prefix)
+			//log.Println("Adding prefix", prefix)
 			r.Left = &RouteBSTNode{Prefix: prefix, Version: version}
 		} else {
 			r.Left.insertRouteIfNew(prefix, version)
 		}
 	} else {
 		if r.Right == nil {
-			log.Println("Adding prefix", prefix)
+			//log.Println("Adding prefix", prefix)
 			r.Right = &RouteBSTNode{Prefix: prefix, Version: version}
 		} else {
 			r.Right.insertRouteIfNew(prefix, version)
