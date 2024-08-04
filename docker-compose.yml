@@ -1,0 +1,6 @@
+version: '2'
+services:
+  ris_tables:
+    build: .
+    ports:
+      - 81:8085
