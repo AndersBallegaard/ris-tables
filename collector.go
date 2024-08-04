@@ -31,10 +31,10 @@ type RISEvent struct {
 	Data RISEventData
 }
 
-func (e *RISEvent) process(collectors *CollectorGroup) {
+func (e *RISEvent) process(collectors *CollectorGroup, stats *EventStats) {
 	rrc := strings.Split(strings.ToLower(e.Data.Host), ".")[0]
 	collectors.collectors[rrc].EventHandler(e)
-
+	stats.add()
 }
 
 func (c *RISCollector) EventHandler(e *RISEvent) {
@@ -95,7 +95,7 @@ func (c *RISCollector) peer_down(e *RISEvent) {
 	log.Println("Peer down recived, but cleanup not implemented yet")
 }
 
-func collectorWorker(collectors *CollectorGroup) {
+func collectorWorker(collectors *CollectorGroup, stats *EventStats) {
 	url := "https://ris-live.ripe.net/v1/stream/?format=json&client=ris-tables-anderstb@anderstb.dk"
 	resp, err := http.Get(url)
 	ErrorParserFatal(err)
@@ -114,7 +114,7 @@ func collectorWorker(collectors *CollectorGroup) {
 
 			//break
 		}
-		event.process(collectors)
+		event.process(collectors, stats)
 	}
 	log.Println("FUCK")
 

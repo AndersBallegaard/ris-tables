@@ -51,6 +51,7 @@ func (f *fwdTableEntry) Len() uint64 {
 
 type SAFIUnicastFwdTable struct {
 	Table []fwdTableEntry
+	Count uint32
 }
 
 type BGPPath struct {
@@ -268,6 +269,7 @@ func (c *RISCollector) init_tables() {
 func (c *SAFI_Unicast) getForwardingTables() *SAFIUnicastFwdTable {
 	fwd := SAFIUnicastFwdTable{}
 	fwd.Table = c.Routes.getForwardingTables()
+	fwd.Count = uint32(len(fwd.Table))
 	return &fwd
 }
 
