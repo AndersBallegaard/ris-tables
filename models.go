@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net"
 	"net/netip"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/praserx/ipconv"
 )
@@ -63,7 +66,7 @@ type BGPPath struct {
 }
 
 type RouteBSTNode struct {
-	version IP_VERSION
+	Version IP_VERSION
 	Prefix  netip.Prefix
 	Paths   []*BGPPath
 	Right   *RouteBSTNode
@@ -123,14 +126,14 @@ func (r *RouteBSTNode) insertRouteIfNew(prefix netip.Prefix, version IP_VERSION)
 	if ps < rps {
 		if r.Left == nil {
 			log.Println("Adding prefix", prefix)
-			r.Left = &RouteBSTNode{Prefix: prefix, version: version}
+			r.Left = &RouteBSTNode{Prefix: prefix, Version: version}
 		} else {
 			r.Left.insertRouteIfNew(prefix, version)
 		}
 	} else {
 		if r.Right == nil {
 			log.Println("Adding prefix", prefix)
-			r.Right = &RouteBSTNode{Prefix: prefix, version: version}
+			r.Right = &RouteBSTNode{Prefix: prefix, Version: version}
 		} else {
 			r.Right.insertRouteIfNew(prefix, version)
 		}
@@ -216,20 +219,20 @@ type SAFI interface {
 }
 
 type SAFI_Unicast struct {
-	version IP_VERSION
+	Version IP_VERSION
 	Routes  *RouteBSTNode
 }
 
 func (s *SAFI_Unicast) insertRouteIfNew(prefix netip.Prefix, version IP_VERSION) {
 	if s.Routes == nil {
-		s.Routes = &RouteBSTNode{Prefix: prefix, version: version}
+		s.Routes = &RouteBSTNode{Prefix: prefix, Version: version}
 	} else {
 		s.Routes.insertRouteIfNew(prefix, version)
 	}
 }
 
 type AFI struct {
-	version IP_VERSION
+	Version IP_VERSION
 	Unicast SAFI_Unicast
 }
 
@@ -249,21 +252,25 @@ type RISCollector struct {
 }
 
 func (g *CollectorGroup) init_collector(info RRCInfoAPIResp) {
-	g.collectors = make(map[string]*RISCollector)
-	for _, rrc := range info.Data.Rrcs {
-		c := RISCollector{Name: strings.ToLower(rrc.Name), Location: rrc.Geographical_location}
-		c.init_tables()
-		g.collectors[c.Name] = &c
+	if g.Collectors == nil {
+		g.Collectors = make(map[string]*RISCollector)
+		g.Stats = EventStats{}
+		for _, rrc := range info.Data.Rrcs {
+			c := RISCollector{Name: strings.ToLower(rrc.Name), Location: rrc.Geographical_location}
+			c.init_tables()
+			g.Collectors[c.Name] = &c
+		}
 	}
+
 }
 
 func (c *RISCollector) init_tables() {
 	c.Routing_table = BGPTable{}
-	c.Routing_table.Ipv4 = AFI{version: IPV4}
-	c.Routing_table.Ipv4.Unicast = SAFI_Unicast{version: IPV4}
+	c.Routing_table.Ipv4 = AFI{Version: IPV4}
+	c.Routing_table.Ipv4.Unicast = SAFI_Unicast{Version: IPV4}
 
-	c.Routing_table.Ipv6 = AFI{version: IPV6}
-	c.Routing_table.Ipv6.Unicast = SAFI_Unicast{version: IPV6}
+	c.Routing_table.Ipv6 = AFI{Version: IPV6}
+	c.Routing_table.Ipv6.Unicast = SAFI_Unicast{Version: IPV6}
 }
 
 func (c *SAFI_Unicast) getForwardingTables() *SAFIUnicastFwdTable {
@@ -282,7 +289,33 @@ func (c *RISCollector) getForwardingTables() RRCFwdTable {
 }
 
 type CollectorGroup struct {
-	collectors map[string]*RISCollector
+	Collectors map[string]*RISCollector
+	Stats      EventStats
+}
+
+func loadFromDisk() CollectorGroup {
+	filename := "ris.json"
+	ncg := CollectorGroup{}
+	// Read from file if posible
+	if _, err := os.Stat(filename); err == nil {
+		log.Println("Found data file, loading from disk")
+		dat, err := os.ReadFile(filename)
+		ErrorParserFatal(err)
+		json.Unmarshal(dat, &ncg)
+	}
+	return ncg
+}
+func (cg *CollectorGroup) persistantSync() {
+	filename := "ris.json"
+	s30, _ := time.ParseDuration("30s")
+	for {
+		time.Sleep(s30)
+		ob, err := json.MarshalIndent(cg, "", "	")
+		if err != nil {
+			log.Println(err)
+		}
+		os.WriteFile(filename, ob, 0664)
+	}
 }
 
 type RRCInfoAPIRespRRC struct {

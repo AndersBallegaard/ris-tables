@@ -31,10 +31,10 @@ type RISEvent struct {
 	Data RISEventData
 }
 
-func (e *RISEvent) process(collectors *CollectorGroup, stats *EventStats) {
+func (e *RISEvent) process(collectors *CollectorGroup) {
 	rrc := strings.Split(strings.ToLower(e.Data.Host), ".")[0]
-	collectors.collectors[rrc].EventHandler(e)
-	stats.add()
+	collectors.Collectors[rrc].EventHandler(e)
+	collectors.Stats.add()
 }
 
 func (c *RISCollector) EventHandler(e *RISEvent) {
@@ -51,7 +51,7 @@ func (s *SAFI_Unicast) addBgpPath(prefix string, nexthop string, event *RISEvent
 	ErrorParserFatal(err)
 
 	// Make sure the route exists in the BST
-	s.insertRouteIfNew(p, s.version)
+	s.insertRouteIfNew(p, s.Version)
 
 	route, err := s.Routes.getExactRoute(p)
 	ErrorParserFatal(err)
@@ -95,7 +95,7 @@ func (c *RISCollector) peer_down(e *RISEvent) {
 	log.Println("Peer down recived, but cleanup not implemented yet")
 }
 
-func collectorWorker(collectors *CollectorGroup, stats *EventStats) {
+func collectorWorker(collectors *CollectorGroup) {
 	url := "https://ris-live.ripe.net/v1/stream/?format=json&client=ris-tables-anderstb@anderstb.dk"
 	resp, err := http.Get(url)
 	ErrorParserFatal(err)
@@ -114,7 +114,7 @@ func collectorWorker(collectors *CollectorGroup, stats *EventStats) {
 
 			//break
 		}
-		event.process(collectors, stats)
+		event.process(collectors)
 	}
 	log.Println("FUCK")
 
