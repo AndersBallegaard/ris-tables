@@ -17,7 +17,13 @@ func GenericHTTPGet(url string) string {
 
 func ErrorParserFatal(e error) {
 	if e != nil {
-		log.Fatalln(e)
+		log.Fatalln("Fatal:", e)
+	}
+}
+
+func ErrorParserInfo(e error) {
+	if e != nil {
+		log.Fatalln("Info:", e)
 	}
 }
 

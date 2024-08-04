@@ -293,28 +293,67 @@ type CollectorGroup struct {
 	Stats      EventStats
 }
 
+type PersistantStorageModel struct {
+	Stats string
+	RRC   []string
+}
+
 func loadFromDisk() CollectorGroup {
-	filename := "ris.json"
 	ncg := CollectorGroup{}
+	filename := "ris.json"
+
 	// Read from file if posible
 	if _, err := os.Stat(filename); err == nil {
-		log.Println("Found data file, loading from disk")
+		log.Println("Found data file, loading from disk v1 format")
 		dat, err := os.ReadFile(filename)
 		ErrorParserFatal(err)
 		json.Unmarshal(dat, &ncg)
+	} else {
+		filename = "data.json"
+		if _, err := os.Stat(filename); err == nil {
+			log.Println("Found data file, loading from disk v2 format")
+			dat, err := os.ReadFile(filename)
+			ErrorParserFatal(err)
+			psm := PersistantStorageModel{}
+			json.Unmarshal(dat, &psm)
+
+			es := EventStats{}
+			json.Unmarshal([]byte(psm.Stats), &es)
+			ncg.Stats = es
+			ncg.Collectors = make(map[string]*RISCollector)
+			for _, cs := range psm.RRC {
+				rrc := RISCollector{}
+				err := json.Unmarshal([]byte(cs), &rrc)
+				ErrorParserInfo(err)
+				log.Println(rrc)
+				ncg.Collectors[rrc.Name] = &rrc
+			}
+
+		}
 	}
 	return ncg
 }
 func (cg *CollectorGroup) persistantSync() {
-	filename := "ris.json"
+	filename := "data.json"
 	s30, _ := time.ParseDuration("30s")
 	for {
 		time.Sleep(s30)
-		ob, err := json.MarshalIndent(cg, "", "	")
-		if err != nil {
-			log.Println(err)
+
+		pm := PersistantStorageModel{}
+
+		esb, err := json.Marshal(cg.Stats)
+		ErrorParserInfo(err)
+		pm.Stats = string(esb)
+		for _, collector := range cg.Collectors {
+			cb, err := json.Marshal(collector)
+
+			ErrorParserInfo(err)
+			pm.RRC = append(pm.RRC, string(cb))
 		}
-		os.WriteFile(filename, ob, 0664)
+
+		pmb, err := json.MarshalIndent(&pm, "", "	")
+		ErrorParserInfo(err)
+		os.WriteFile(filename, pmb, 0644)
 	}
 }
 
